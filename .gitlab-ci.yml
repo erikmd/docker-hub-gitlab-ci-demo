@@ -31,7 +31,7 @@ stages:
   services:
     - docker:dind
   variables:
-    IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_${CI_JOB_NAME}"
+    IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}-${CI_JOB_NAME}"
     OPAM_SWITCH: "edge"
   before_script:
     - echo "${CI_JOB_TOKEN}" | docker login -u "${CI_REGISTRY_USER}" --password-stdin "${CI_REGISTRY}"
@@ -60,7 +60,7 @@ coq-dev:
 # set CONTRIB_URL, script (and COQ_VERSION, CONTRIB_VERSION) when using
 .ci:
   stage: test
-  image: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_coq-${COQ_VERSION}"
+  image: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}-coq-${COQ_VERSION}"
   variables:
     GIT_STRATEGY: none
   before_script:
