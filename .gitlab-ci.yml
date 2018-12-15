@@ -1,24 +1,48 @@
-image: docker:latest
-
-services:
-  - docker:dind
+# Design:
+# - build stage (e.g. docker build -t mathcomp-dev:$SLUG_coq-8.6 .)
+#   - Dockerfile containing "opam switch set $compiler && eval $(opam env)"
+#   - master (protected branch) => push on Docker Hub
+#   - other branches (not tags) => push on GitLab registry
+#   - PRs => push on GitLab registry
+# - test stage (image: mathcomp-dev:$SLUG_coq-8.6, foreach child project)
+#   - script template foreach project (custom script)
+#   - job instances foreach Coq version and project (custom URL)
+# Todo:
+# - set vars CI_REGISTRY, CI_REGISTRY_USER, CI_JOB_TOKEN for protected branches
+# Warning:
+# - ensure different branches will yield different values of CI_COMMIT_REF_SLUG
+# - CI_COMMIT_REF_NAME: The branch or tag name for which project is built.
+# - CI_COMMIT_REF_SLUG: $CI_COMMIT_REF_NAME lowercased, shortened to 63 bytes,
+#   and with everything except 0-9 and a-z replaced with -.
+#   No leading / trailing -. Use in URLs, host names and domain names.
 
 stages:
   - build
+  - test
 
+# set var OPAM_SWITCH (if need be) when using
 .build:
   stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_coq-${CI_JOB_NAME}"
+    OPAM_SWITCH: "edge"
+  before_script:
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
   script:
-    - docker build --build-arg=coq_image="coqorg/${CI_JOB_NAME}" --pull -t demo .
-
-coq:8.4:
-  extends: .build
-
-coq:8.5:
-  extends: .build
-
+    - docker build --pull --build-arg=coq_image="coqorg/${CI_JOB_NAME}" --build-arg=compiler="${OPAM_SWITCH}" -t "${IMAGE}" .
+    - docker push "${IMAGE}"
+    - docker logout "${CI_REGISTRY}"
+  except:
+    - tags
+    - merge_requests
+    
 coq:8.6:
   extends: .build
+  variables:
+    OPAM_SWITCH: "base"
 
 coq:8.7:
   extends: .build
@@ -28,3 +52,71 @@ coq:8.8:
 
 coq:dev:
   extends: .build
+  script:
+  # FIXME: for testing purposes
+  - /bin/false
+
+# set CI_PROJECT_URL, script (and COQ_VERSION, CI_COMMIT_REF_NAME) when using
+.test:
+  stage: test
+  image: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_coq-${COQ_VERSION}"
+  variables:
+    GIT_STRATEGY: clone
+  before_script:
+    - cat /proc/{cpu,mem}info || true
+    # don't printenv if there are private tokens
+    - opam config list
+    - opam repo list
+    - opam list
+    - coqc --version
+    # FIXME: for testing purposes
+    - stat -c "%u" .
+    - id
+    - pwd
+    - sudo chown -R coq:coq "${CI_PROJECT_DIR}"
+  except:
+    - tags
+    - merge_requests
+
+# Guidelines to add a library to math-comp CI:
+# - Add a hidden job (starting with a .) that extends .test, defines var
+#   CI_PROJECT_URL (child project URL) and defines a dedicated script
+# - Add 1 job per Coq version to test, that extends the previous hidden job and
+#   defines vars COQ_VERSION and CI_COMMIT_REF_NAME (compatible project branch)
+
+.ci-fourcolor:
+  extends: .test
+  variables:
+    CI_PROJECT_URL: "https://github.com/math-comp/fourcolor.git"
+    # FIXME: for testing purposes
+    CI_COMMIT_REF_NAME: dev/trunk
+  script:
+    # FIXME: for testing purposes
+    - cat Makefile
+    # - make -j "${NJOBS}"
+    # - make install
+
+ci-fourcolor-8.6:
+  extends: .ci-fourcolor
+  variables:
+    COQ_VERSION: "8.6"
+    CI_COMMIT_REF_NAME: master
+
+ci-fourcolor-8.7:
+  extends: .ci-fourcolor
+  variables:
+    COQ_VERSION: "8.7"
+    CI_COMMIT_REF_NAME: master
+
+ci-fourcolor-8.8:
+  extends: .ci-fourcolor
+  variables:
+    COQ_VERSION: "8.8"
+    # FIXME: for testing purposes
+    # CI_COMMIT_REF_NAME: master
+
+ci-fourcolor-dev:
+  extends: .ci-fourcolor
+  variables:
+    COQ_VERSION: dev
+    CI_COMMIT_REF_NAME: master
