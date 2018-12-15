@@ -1,7 +1,7 @@
 ARG coq_image="coqorg/coq:dev"
 FROM ${coq_image}
 
-WORKDIR /home/coq/ci
+WORKDIR /home/coq/mathcomp
 
 COPY _CoqProject .
 COPY src src
@@ -21,6 +21,3 @@ RUN ["/bin/bash", "--login", "-c", "set -x \
   && coq_makefile -f _CoqProject -o Makefile \
   && make \
   && make install"]
-
-# CI math-comp
-# coq-community opam
