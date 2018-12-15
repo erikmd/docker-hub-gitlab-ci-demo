@@ -1,18 +1,20 @@
 # Design:
 # - build stage (e.g. docker build -t mathcomp-dev:$SLUG_coq-8.6 .)
-#   - Dockerfile containing "opam switch set $compiler && eval $(opam env)"
+#   - choice of the OCaml compiler: var OPAM_SWITCH in {base, edge}
+#     Dockerfile containing "opam switch set $compiler && eval $(opam env)"
 #   - master (protected branch) => push on Docker Hub
 #   - other branches (not tags) => push on GitLab registry
-#   - PRs => push on GitLab registry
+#   - Todo: GitHub PRs => push on GitLab registry
 # - test stage (image: mathcomp-dev:$SLUG_coq-8.6, foreach child project)
 #   - script template foreach project (custom script)
 #   - job instances foreach Coq version and project (custom URL)
 #
-# Todo:
+# Config:
 # - set vars CI_REGISTRY, CI_REGISTRY_USER, CI_JOB_TOKEN for protected branches
 #
 # Warning:
 # - ensure different branches will yield different values of CI_COMMIT_REF_SLUG
+# cf. doc:
 # - CI_COMMIT_REF_NAME: The branch or tag name for which project is built.
 # - CI_COMMIT_REF_SLUG: $CI_COMMIT_REF_NAME lowercased, shortened to 63 bytes,
 #   and with everything except 0-9 and a-z replaced with -.
@@ -56,7 +58,7 @@ coq-dev:
   extends: .build
 
 # set CONTRIB_URL, script (and COQ_VERSION, CONTRIB_VERSION) when using
-.test:
+.ci:
   stage: test
   image: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_coq-${COQ_VERSION}"
   variables:
@@ -68,27 +70,23 @@ coq-dev:
     - opam repo list
     - opam list
     - coqc --version
-    # FIXME: for testing purposes
-    - id
-    - pwd
     - git clone -b "${CONTRIB_VERSION}" --depth 1 "${CONTRIB_URL}" /home/coq/ci
     - cd /home/coq/ci
-    # FIXME: for testing purposes
-    - stat -c "%u" .
   except:
     - tags
     - merge_requests
 
-# Guidelines to add a library to math-comp CI:
-# - Add a hidden job (starting with a .) that extends .test, defines var
-#   CONTRIB_URL (child project URL) and defines a dedicated script
-# - Add 1 job per Coq version to test, that extends the previous hidden job and
-#   defines vars COQ_VERSION and CONTRIB_VERSION (compatible git reference)
+# Guidelines to add a library to mathcomp CI:
+# - Add a hidden job (starting with a .) .ci-lib that extends the .ci job,
+#   sets var CONTRIB_URL (library Git URL), and defines a dedicated script
+# - Add 1 job per Coq version to test, that extends the previous hidden job,
+#   and sets vars COQ_VERSION, CONTRIB_VERSION (compatible Git branch/tag)
 
 .ci-fourcolor:
-  extends: .test
+  extends: .ci
   variables:
     CONTRIB_URL: "https://github.com/math-comp/fourcolor.git"
+    CONTRIB_VERSION: master
   script:
     # FIXME: for testing purposes
     - cat Makefile
@@ -99,23 +97,19 @@ ci-fourcolor-8.6:
   extends: .ci-fourcolor
   variables:
     COQ_VERSION: "8.6"
-    CONTRIB_VERSION: master
+    # CONTRIB_VERSION: "v8.6"
 
 ci-fourcolor-8.7:
   extends: .ci-fourcolor
   variables:
     COQ_VERSION: "8.7"
-    CONTRIB_VERSION: master
 
 ci-fourcolor-8.8:
   extends: .ci-fourcolor
   variables:
     COQ_VERSION: "8.8"
-    # FIXME: for testing purposes
-    CONTRIB_VERSION: not-a-branch
 
 ci-fourcolor-dev:
   extends: .ci-fourcolor
   variables:
     COQ_VERSION: dev
-    CONTRIB_VERSION: master
