@@ -27,7 +27,7 @@ stages:
   services:
     - docker:dind
   variables:
-    IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_coq-${CI_JOB_NAME}"
+    IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_coq-${CI_JOB_NAME//:/-}"
     OPAM_SWITCH: "edge"
   before_script:
     - docker login -u "${CI_REGISTRY_USER}" -p "${CI_JOB_TOKEN}" "${CI_REGISTRY}"
