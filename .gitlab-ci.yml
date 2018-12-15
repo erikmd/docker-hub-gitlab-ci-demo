@@ -7,8 +7,10 @@
 # - test stage (image: mathcomp-dev:$SLUG_coq-8.6, foreach child project)
 #   - script template foreach project (custom script)
 #   - job instances foreach Coq version and project (custom URL)
+#
 # Todo:
 # - set vars CI_REGISTRY, CI_REGISTRY_USER, CI_JOB_TOKEN for protected branches
+#
 # Warning:
 # - ensure different branches will yield different values of CI_COMMIT_REF_SLUG
 # - CI_COMMIT_REF_NAME: The branch or tag name for which project is built.
@@ -53,12 +55,12 @@ coq-8.8:
 coq-dev:
   extends: .build
 
-# set CI_PROJECT_URL, script (and COQ_VERSION, CI_COMMIT_REF_NAME) when using
+# set CONTRIB_URL, script (and COQ_VERSION, CONTRIB_VERSION) when using
 .test:
   stage: test
   image: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_coq-${COQ_VERSION}"
   variables:
-    GIT_STRATEGY: clone
+    GIT_STRATEGY: none
   before_script:
     - cat /proc/{cpu,mem}info || true
     # don't printenv if there are private tokens
@@ -67,26 +69,26 @@ coq-dev:
     - opam list
     - coqc --version
     # FIXME: for testing purposes
-    - stat -c "%u" .
     - id
     - pwd
-    - sudo chown -R coq:coq "${CI_PROJECT_DIR}"
+    - git clone -b "${CONTRIB_VERSION}" --depth 1 "${CONTRIB_URL}" /home/coq/ci
+    - cd /home/coq/ci
+    # FIXME: for testing purposes
+    - stat -c "%u" .
   except:
     - tags
     - merge_requests
 
 # Guidelines to add a library to math-comp CI:
 # - Add a hidden job (starting with a .) that extends .test, defines var
-#   CI_PROJECT_URL (child project URL) and defines a dedicated script
+#   CONTRIB_URL (child project URL) and defines a dedicated script
 # - Add 1 job per Coq version to test, that extends the previous hidden job and
-#   defines vars COQ_VERSION and CI_COMMIT_REF_NAME (compatible project branch)
+#   defines vars COQ_VERSION and CONTRIB_VERSION (compatible git reference)
 
 .ci-fourcolor:
   extends: .test
   variables:
-    CI_PROJECT_URL: "https://github.com/math-comp/fourcolor.git"
-    # FIXME: for testing purposes
-    CI_COMMIT_REF_NAME: dev/trunk
+    CONTRIB_URL: "https://github.com/math-comp/fourcolor.git"
   script:
     # FIXME: for testing purposes
     - cat Makefile
@@ -97,23 +99,23 @@ ci-fourcolor-8.6:
   extends: .ci-fourcolor
   variables:
     COQ_VERSION: "8.6"
-    CI_COMMIT_REF_NAME: master
+    CONTRIB_VERSION: master
 
 ci-fourcolor-8.7:
   extends: .ci-fourcolor
   variables:
     COQ_VERSION: "8.7"
-    CI_COMMIT_REF_NAME: master
+    CONTRIB_VERSION: master
 
 ci-fourcolor-8.8:
   extends: .ci-fourcolor
   variables:
     COQ_VERSION: "8.8"
     # FIXME: for testing purposes
-    # CI_COMMIT_REF_NAME: master
+    CONTRIB_VERSION: not-a-branch
 
 ci-fourcolor-dev:
   extends: .ci-fourcolor
   variables:
     COQ_VERSION: dev
-    CI_COMMIT_REF_NAME: master
+    CONTRIB_VERSION: master
