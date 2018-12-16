@@ -1,16 +1,16 @@
 # Design:
-# - build stage (e.g. docker build -t mathcomp-dev:$SLUG_coq-8.6 .)
+# - build stage (e.g. docker build -t mathcomp-dev:$SLUG-coq-8.6 .)
 #   - choice of the OCaml compiler: var OPAM_SWITCH in {base, edge}
-#     Dockerfile containing "opam switch set $compiler && eval $(opam env)"
+#     (Dockerfile containing: "opam switch set $compiler && eval $(opam env)")
 #   - master (protected branch) => push on Docker Hub
 #   - other branches (not tags) => push on GitLab registry
-#   - Todo: GitHub PRs => push on GitLab registry
-# - test stage (image: mathcomp-dev:$SLUG_coq-8.6, foreach child project)
-#   - script template foreach project (custom script)
-#   - job instances foreach Coq version and project (custom URL)
+#   - Todo: GitHub PRs => push on GitLab registry, temporarily?
+# - test stage (image: mathcomp-dev:$SLUG-coq-8.6)
+#   - script template foreach project (custom CONTRIB_URL, script)
+#   - jobs foreach project and Coq version (custom COQ_VERSION, CONTRIB_VERSION)
 #
-# Config:
-# - set vars CI_REGISTRY, CI_REGISTRY_USER, CI_JOB_TOKEN for protected branches
+# Config for protected branches:
+# - set vars CI_REGISTRY, CI_REGISTRY_USER, CI_REGISTRY_IMAGE, CI_JOB_TOKEN
 #
 # Warning:
 # - ensure different branches will yield different values of CI_COMMIT_REF_SLUG
@@ -57,7 +57,7 @@ coq-8.8:
 coq-dev:
   extends: .build
 
-# set CONTRIB_URL, script (and COQ_VERSION, CONTRIB_VERSION) when using
+# set CONTRIB_URL, script, COQ_VERSION, CONTRIB_VERSION when using
 .ci:
   stage: test
   image: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}-coq-${COQ_VERSION}"
