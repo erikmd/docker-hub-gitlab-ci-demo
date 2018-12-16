@@ -17,6 +17,8 @@ RUN ["/bin/bash", "--login", "-c", "set -x \
   && [ -n \"$compiler\" ] \
   && opam switch set ${compiler} \
   && eval $(opam env) \
+  && opam repository add --all-switches --set-default coq-extra-dev https://coq.inria.fr/opam/extra-dev \
+  && opam repository add --all-switches --set-default coq-core-dev https://coq.inria.fr/opam/core-dev \
   && opam update -y -u \
   && opam pin add -n -k version ${MATHCOMP_PACKAGE} ${MATHCOMP_VERSION} \
   && opam install -y -j ${NJOBS} ${MATHCOMP_PACKAGE} \
